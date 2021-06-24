@@ -1,5 +1,6 @@
 import serial
 from time import sleep
+import binascii
 
 ser = serial.Serial('/dev/ttyS0', 57600)  # open serial port
 print(ser.name)         # check which port was really used
@@ -55,18 +56,19 @@ def receiveRadio():
             print(response)
             msg2 = response[10:][:-2]
             print(msg2)
-            if (((not msg2.endswith('o'))) and not msg2.endswith('k')):
-                msg = binascii.unhexlify(msg2.encode()).decode()
+            msg = binascii.unhexlify(msg2.encode()).decode()
+            if (((msg.startswith('1234'))) and msg.endswith('end')):
                 start, message, end = msg.split(';')               
-                if start == '1234' and end == 'end' :
-                    #print(msg)
-                    print(message)
-                else:
-                        print('wrong code')
+                print(message)
+            
+            elif (((msg.startswith('1234'))) and not msg.endswith('end')):
+                print('send again')
             else:
-                print('odd length string')
+                print('not for us')
     else:
         print('loppu')
     
-
+#while True:
+#    sendRadio()
+#    sleep(1)
 receiveRadio()
