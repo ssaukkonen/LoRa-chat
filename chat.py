@@ -31,9 +31,6 @@ def sendRadio():
     message = 'lol'
     start = '1234'
     end = 'end'
-    #print(code)
-    #now = datetime.now().strftime("%Y/%m/%d %H:%M:%S")
-    #print(now)
     msg = start.encode("utf-8").hex()+';'.encode("utf-8").hex()+message.encode("utf-8").hex()+';'.encode("utf-8").hex()+end.encode("utf-8").hex()  
     print(msg)
     send = 'radio tx '
