@@ -68,7 +68,7 @@ def receiveRadio():
     else:
         print('loppu')
     
-#while True:
-#    sendRadio()
-#    sleep(1)
-receiveRadio()
+while True:
+    sendRadio()
+    sleep(1)
+#receiveRadio()
