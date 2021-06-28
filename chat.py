@@ -75,9 +75,12 @@ def receiveRadio():
                     message = bytes(message, encoding= 'utf-8')
                     key = load_key()
                     f = Fernet(key)
-                    decryptedMessage = f.decrypt(message)
-                    decryptedMessage = decryptedMessage.decode('utf-8')
-                    print(decryptedMessage)
+                    try:
+                        decryptedMessage = f.decrypt(message)
+                        decryptedMessage = decryptedMessage.decode('utf-8')
+                        print(decryptedMessage)
+                    except:
+                        print('error')
                 
                 elif (((msg.startswith('1234'))) and not msg.endswith('end')):
                     print('send again')
