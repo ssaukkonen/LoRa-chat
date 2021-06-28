@@ -1,6 +1,7 @@
 import serial
 from time import sleep
 import binascii
+from cryptography.fernet import Fernet
 
 ser = serial.Serial('/dev/ttyS0', 57600)  # open serial port
 print(ser.name)         # check which port was really used
@@ -32,7 +33,13 @@ def sendRadio():
     message = 'lol'
     start = '1234'
     end = 'end'
-    msg = start.encode("utf-8").hex()+';'.encode("utf-8").hex()+message.encode("utf-8").hex()+';'.encode("utf-8").hex()+end.encode("utf-8").hex()  
+    
+    key = load_key()
+    message = message.encode()
+    f = Fernet(key)
+    encryptedMessage = f.encrypt(message)
+    
+    msg = start.encode("utf-8").hex()+';'.encode("utf-8").hex()+encryptedMessage.hex()+';'.encode("utf-8").hex()+end.encode("utf-8").hex()  
     print(msg)
     send = 'radio tx '
     ser.write(send.encode('utf_8')+msg.encode('utf_8')+'\r\n'.encode('utf_8'))     # write a string
@@ -59,7 +66,12 @@ def receiveRadio():
             msg = binascii.unhexlify(msg2.encode()).decode()
             if (((msg.startswith('1234'))) and msg.endswith('end')):
                 start, message, end = msg.split(';')               
-                print(message)
+                
+                key = load_key()
+                f = Fernet(key)
+                decryptedMessage = f.decrypt(message)
+                
+                print(decryptedMessage)
             
             elif (((msg.startswith('1234'))) and not msg.endswith('end')):
                 print('send again')
@@ -67,6 +79,9 @@ def receiveRadio():
                 print('not for us')
     else:
         print('loppu')
+        
+def load_key():
+    return open("secret.key", "rb").read()        
     
 while True:
     sendRadio()
