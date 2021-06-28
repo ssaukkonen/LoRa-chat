@@ -59,31 +59,37 @@ def receiveRadio():
         ser.write(b'\r\n')
         #if ser.readable():                
         response = ser.readline().decode()
+        #print(response)
         if response.startswith('radio_rx'):
             print(response)
             msg2 = response[10:][:-2]
             print(msg2)
-            msg = binascii.unhexlify(msg2.encode()).decode()
-            if (((msg.startswith('1234'))) and msg.endswith('end')):
-                start, message, end = msg.split(';')               
-                
-                key = load_key()
-                f = Fernet(key)
-                decryptedMessage = f.decrypt(message)
-                
-                print(decryptedMessage)
-            
-            elif (((msg.startswith('1234'))) and not msg.endswith('end')):
+            if (len(msg2) % 2 == 1):
                 print('send again')
             else:
-                print('not for us')
+                msg = binascii.unhexlify(msg2.encode()).decode()
+                if (((msg.startswith('1234'))) and msg.endswith('end')):
+                    start, message, end = msg.split(';')               
+                    
+                    print(len(message),message)
+                    message = bytes(message, encoding= 'utf-8')
+                    key = load_key()
+                    f = Fernet(key)
+                    decryptedMessage = f.decrypt(message)
+                    decryptedMessage = decryptedMessage.decode('utf-8')
+                    print(decryptedMessage)
+                
+                elif (((msg.startswith('1234'))) and not msg.endswith('end')):
+                    print('send again')
+                else:
+                    print('not for us')
     else:
         print('loppu')
         
 def load_key():
     return open("secret.key", "rb").read()        
     
-while True:
-    sendRadio()
-    sleep(1)
-#receiveRadio()
+#while True:
+#    sendRadio()
+#    sleep(1)
+receiveRadio()
