@@ -14,7 +14,9 @@ def resetRadio():
         'sys get ver',
         'sys get hweui',
         'mac pause',
-        'radio set pwr 14'
+        'radio set sf sf7',
+        'radio set bw 250',
+        'radio set pwr 5'
     ]
 
     for m in komennot:
@@ -38,6 +40,7 @@ def sendRadio():
     message = message.encode()
     f = Fernet(key)
     encryptedMessage = f.encrypt(message)
+    print(len(encryptedMessage))
     
     msg = start.encode("utf-8").hex()+';'.encode("utf-8").hex()+encryptedMessage.hex()+';'.encode("utf-8").hex()+end.encode("utf-8").hex()  
     print(msg)
@@ -64,11 +67,11 @@ def receiveRadio():
             print(response)
             msg2 = response[10:][:-2]
             print(msg2)
-            if (len(msg2) % 2 == 1):
+            if len(msg2) % 2 == 1 or msg2.endswith(('o', 'k')):
                 print('send again')
             else:
-                msg = binascii.unhexlify(msg2.encode()).decode()
-                if (((msg.startswith('1234'))) and msg.endswith('end')):
+                if msg2.startswith('313233343') and msg2.endswith('656E64'):
+                    msg = binascii.unhexlify(msg2.encode()).decode()
                     start, message, end = msg.split(';')               
                     
                     print(len(message),message)
@@ -82,7 +85,7 @@ def receiveRadio():
                     except:
                         print('error')
                 
-                elif (((msg.startswith('1234'))) and not msg.endswith('end')):
+                elif (((msg2.startswith('313233343'))) and not msg2.endswith('656E64')):
                     print('send again')
                 else:
                     print('not for us')
