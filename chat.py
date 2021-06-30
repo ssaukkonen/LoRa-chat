@@ -5,8 +5,7 @@ from cryptography.fernet import Fernet
 
 ser = serial.Serial('/dev/ttyS0', 57600)  # open serial port
 print(ser.name)         # check which port was really used
-
-global message
+message = ''
 
 class crypto:
     def load_key(self):
@@ -51,8 +50,8 @@ class radio(crypto):
                 
     def sendRadio(self):
         self.resetRadio()
-        global message
-        message = 'lol'
+        message
+        #message = 'lol'
         start = '1234'
         end = 'end'
         
@@ -68,12 +67,24 @@ class radio(crypto):
         response = ser.readline().decode()
         print(response)
         sleep(2)
+        self.resetRadio()
 
+    def sendReceived(self):
+        sleep(2)
+        self.resetRadio()
+        msg = '4321'.encode("utf-8").hex()
+        print(msg)
+        send = 'radio tx '
+        ser.write(send.encode('utf_8')+msg.encode('utf_8')+'\r\n'.encode('utf_8'))     # write a string
+        sleep(.2)
+        response = ser.readline().decode()
+        print(response)
+        sleep(2)
+        self.resetRadio()
+        
     def receiveRadio(self):
         self.resetRadio()
-        i=1
-        global temp, humi, date
-        while i==1:
+        while True:
             #print('start')
             sleep(.2)
             ser.write('radio rx 0'.encode())
@@ -85,19 +96,23 @@ class radio(crypto):
                 print(response)
                 msg2 = response[10:][:-2]
                 print(msg2)
-                if len(msg2) % 2 == 1 or msg2.endswith(('o', 'k')):
+                if msg2.startswith('34333231'):
+                    print('message received')
+                elif msg2.startswith('39393939'):
+                    print('send message again')
+                    self.sendRadio()
+                elif len(msg2) % 2 == 1 or msg2.endswith(('o', 'k')):
                     print('send again')
                 else:
                     if msg2.startswith('313233343') and msg2.endswith('656E64'):
                         msg = binascii.unhexlify(msg2.encode()).decode()
-                        start, message, end = msg.split(';')               
-                        
+                        start, message, end = msg.split(';')                                       
                         print(len(message),message)
                         message = bytes(message, encoding= 'utf-8')
                         object2 = crypto()
                         decryptedMessage = object2.decryption(message)
                         print(decryptedMessage)
-                        
+                        self.sendReceived()
                     elif (((msg2.startswith('313233343'))) and not msg2.endswith('656E64')):
                         print('send again')
                     else:
@@ -105,7 +120,8 @@ class radio(crypto):
         else:
             print('loppu')     
     
-#while True:
-#    radio().sendRadio()
-#    sleep(1)
-radio().receiveRadio()
+while True:
+   message = 'lol'    
+   radio().sendRadio()
+   sleep(1)
+#radio().receiveRadio()
