@@ -12,10 +12,11 @@ from main_window_ui import Ui_MainWindow
 from PyQt5.QtCore import *
 ser = serial.Serial('/dev/ttyS0', 57600)  # open serial port
 print(ser.name)         # check which port was really used
-message = '' 
             
 class WorkerSignals(QObject):
     messageToGUI = pyqtSignal(str)
+    sendMessage = pyqtSignal(str)
+    stopReceiving = pyqtSignal(int, str)
 
 class Worker(QRunnable):
     '''
@@ -29,7 +30,9 @@ class Worker(QRunnable):
         print("Thread start")
         objectCrypto = self.crypto()
         #objectRadio = self.radio()
-        self.receiveRadio()
+        message = ''
+        self.resetRadio()
+        self.receiveRadio(1,message)
 
     def resetRadio(self):
         komennot = [
@@ -52,14 +55,12 @@ class Worker(QRunnable):
                     print('\t<< no response')
         sleep(.2)           
                 
-    def sendRadio(self):
+    def sendRadio(self, message):
         self.resetRadio()
-        message
-        #message = 'lol'
         start = '1234'
         end = 'end'
         
-        object1 = crypto()
+        object1 = Worker().crypto()
         encryptedMessage = object1.encryption(message)
         print(len(encryptedMessage))
         
@@ -86,9 +87,23 @@ class Worker(QRunnable):
         sleep(2)
         self.resetRadio()
         
-    def receiveRadio(self):
+    def sendAgain(self):
+        sleep(2)
         self.resetRadio()
-        while True:
+        msg = '9999'.encode("utf-8").hex()
+        print(msg)
+        send = 'radio tx '
+        ser.write(send.encode('utf_8')+msg.encode('utf_8')+'\r\n'.encode('utf_8'))     # write a string
+        sleep(.2)
+        response = ser.readline().decode()
+        print(response)
+        sleep(2)
+        self.resetRadio()        
+        
+    def receiveRadio(self, i, message2):
+        #self.resetRadio()
+        print(message2)
+        while i == 1:
             #print('start')
             sleep(.2)
             ser.write('radio rx 0'.encode())
@@ -106,6 +121,7 @@ class Worker(QRunnable):
                     print('send message again')
                     self.sendRadio()
                 elif len(msg2) % 2 == 1 or msg2.endswith(('o', 'k')):
+                    self.sendAgain()
                     print('send again')
                 else:
                     if msg2.startswith('313233343') and msg2.endswith('656E64'):
@@ -120,6 +136,7 @@ class Worker(QRunnable):
                         #objectGUI.writeToBrowser()
                         self.sendReceived()
                     elif (((msg2.startswith('313233343'))) and not msg2.endswith('656E64')):
+                        self.sendAgain()
                         print('send again')
                     else:
                         print('not for us')
@@ -127,6 +144,8 @@ class Worker(QRunnable):
                 pass
         else:
             print('loppu')
+            sleep(5)
+            self.sendRadio(message2)
     class crypto:
         def load_key(self):
             return open("secret.key", "rb").read()
@@ -154,12 +173,14 @@ class Window(QMainWindow, Ui_MainWindow):
         self.statusBar().showMessage('Ready to send message')
         self.threadpool = QThreadPool()
         print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
+        self.signals = WorkerSignals()
         self.startWorker()
 
     def startWorker(self):
         worker = Worker()
-        #worker.signals.current.connect(self.updateCurrent)
         worker.signals.messageToGUI.connect(self.writeToBrowser)
+        self.signals.stopReceiving.connect(worker.receiveRadio)
+        self.signals.sendMessage.connect(worker.sendRadio)
         self.threadpool.start(worker)        
 
     def connectSignalsSlots(self):
@@ -168,22 +189,27 @@ class Window(QMainWindow, Ui_MainWindow):
         
     def writeToBrowser(self, message):
         now = datetime.now().strftime("%H:%M:%S: ")
-        now = now+message
+        message = now+message
         red = QColor(255, 0, 0)
         self.textBrowser.setTextColor(red)
-        self.textBrowser.append(now)
+        self.textBrowser.append(message)
 
     def receiveSendButton(self):
-        self.statusBar().showMessage('clicked') 
+        now = datetime.now().strftime("%H:%M:%S: ")
+        blue = QColor(0, 0, 255)
+        self.textBrowser.setTextColor(blue)
+        message = self.textEdit.text()
+        worker = Worker()
+        self.signals.stopReceiving.emit(0, message)
+#         sleep(5)
+#         self.signals.sendMessage.emit(message)
+        message = now+message
+        self.textBrowser.append(message)
+        self.textEdit.clear()      
+        self.statusBar().showMessage('Message sent')
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     win = Window()
     win.show()
     sys.exit(app.exec())
-
-#while True:
-#   message = 'lol'    
-#   radio().sendRadio()
-#   sleep(1)
-#radio().receiveRadio()
