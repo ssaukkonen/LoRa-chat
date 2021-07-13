@@ -37,12 +37,13 @@ class Worker(QRunnable):
     def resetRadio(self):
         komennot = [
             'mac reset 868',
+            #'radio rxstop',
             'sys get ver',
-            'sys get hweui',
+            'sys get hweui',            
             'mac pause',
             'radio set sf sf7',
             'radio set bw 250',
-            'radio set pwr 5'
+            'radio set pwr 5'            
         ]
 
         for m in komennot:
@@ -65,7 +66,7 @@ class Worker(QRunnable):
         print(len(encryptedMessage))
         
         msg = start.encode("utf-8").hex()+';'.encode("utf-8").hex()+encryptedMessage.hex()+';'.encode("utf-8").hex()+end.encode("utf-8").hex()  
-        print(msg)
+        print(msg)        
         send = 'radio tx '
         ser.write(send.encode('utf_8')+msg.encode('utf_8')+'\r\n'.encode('utf_8'))     # write a string
         sleep(.2)
@@ -101,6 +102,7 @@ class Worker(QRunnable):
         self.resetRadio()        
         
     def receiveRadio(self, i, message2):
+        ser = serial.Serial('/dev/ttyS0', 57600)
         #self.resetRadio()
         print(message2)
         while i == 1:
@@ -144,7 +146,19 @@ class Worker(QRunnable):
                 pass
         else:
             print('loppu')
-            sleep(5)
+            sleep(1)
+            #reset = 'radio rxstop'
+            #ser.write(reset.encode('utf_8')+'\r\n'.encode('utf_8'))
+            ser.write('radio rxstop'.encode())
+            ser.write(b'\r\n')
+            response = ser.readline().decode()
+            print(response)     
+            sleep(.2)
+            ser.close()
+            #global ser
+            ser = serial.Serial('/dev/ttyS0', 57600)
+            print(ser.name)                       
+            sleep(2)
             self.sendRadio(message2)
     class crypto:
         def load_key(self):
