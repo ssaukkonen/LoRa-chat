@@ -12,6 +12,8 @@ from main_window_ui import Ui_MainWindow
 from PyQt5.QtCore import *
 ser = serial.Serial('/dev/ttyS0', 57600)  # open serial port
 print(ser.name)         # check which port was really used
+global active, gmessage
+active = True
             
 class WorkerSignals(QObject):
     messageToGUI = pyqtSignal(str)
@@ -32,7 +34,7 @@ class Worker(QRunnable):
         #objectRadio = self.radio()
         message = ''
         self.resetRadio()
-        self.receiveRadio(1,message)
+        self.receiveRadio()
 
     def resetRadio(self):
         komennot = [
@@ -56,7 +58,9 @@ class Worker(QRunnable):
         sleep(.2)           
                 
     def sendRadio(self, message):
+        global active
         self.resetRadio()
+        print(message)
         start = '1234'
         end = 'end'
         
@@ -72,7 +76,9 @@ class Worker(QRunnable):
         response = ser.readline().decode()
         print(response)
         sleep(2)
+        active = True
         self.resetRadio()
+        self.receiveRadio()
 
     def sendReceived(self):
         sleep(2)
@@ -100,10 +106,9 @@ class Worker(QRunnable):
         sleep(2)
         self.resetRadio()        
         
-    def receiveRadio(self, i, message2):
-        #self.resetRadio()
-        print(message2)
-        while i == 1:
+    def receiveRadio(self):
+        global active, gmessage
+        while active:
             #print('start')
             sleep(.2)
             ser.write('radio rx 0'.encode())
@@ -134,7 +139,7 @@ class Worker(QRunnable):
                         self.signals.messageToGUI.emit(decryptedMessage)
                         #objectGUI = Window()
                         #objectGUI.writeToBrowser()
-                        self.sendReceived()
+                        #self.sendReceived()
                     elif (((msg2.startswith('313233343'))) and not msg2.endswith('656E64')):
                         self.sendAgain()
                         print('send again')
@@ -144,8 +149,23 @@ class Worker(QRunnable):
                 pass
         else:
             print('loppu')
-            sleep(5)
-            self.sendRadio(message2)
+            ser.write('radio rxstop'.encode())
+            ser.write(b'\r\n')
+            sleep(.2)
+            response = ser.readline().decode()
+            print('rxstop '+response)
+            while response.startswith('busy'):
+                ser.write('radio rxstop'.encode())
+                ser.write(b'\r\n')
+                response = ser.readline().decode()
+                print('rxstop '+response)
+            else:
+                ser.write('mac resume'.encode())
+                ser.write(b'\r\n')
+                sleep(.2)
+                response = ser.readline().decode()
+                print('mac resume '+response)
+                self.sendRadio(gmessage)
     class crypto:
         def load_key(self):
             return open("secret.key", "rb").read()
@@ -181,8 +201,8 @@ class Window(QMainWindow, Ui_MainWindow):
         worker.signals.messageToGUI.connect(self.writeToBrowser)
         self.signals.stopReceiving.connect(worker.receiveRadio)
         self.signals.sendMessage.connect(worker.sendRadio)
-        self.threadpool.start(worker)        
-
+        self.threadpool.start(worker)
+        
     def connectSignalsSlots(self):
         #self.action_Exit.triggered.connect(self.close)
         self.sendButton.clicked.connect(self.receiveSendButton)
@@ -195,14 +215,17 @@ class Window(QMainWindow, Ui_MainWindow):
         self.textBrowser.append(message)
 
     def receiveSendButton(self):
+        global active, gmessage
         now = datetime.now().strftime("%H:%M:%S: ")
         blue = QColor(0, 0, 255)
         self.textBrowser.setTextColor(blue)
         message = self.textEdit.text()
         worker = Worker()
-        self.signals.stopReceiving.emit(0, message)
-#         sleep(5)
-#         self.signals.sendMessage.emit(message)
+        active = False
+        gmessage = message
+        #self.signals.stopReceiving.emit(0, message)
+        sleep(1)
+        #self.signals.sendMessage.emit(message)
         message = now+message
         self.textBrowser.append(message)
         self.textEdit.clear()      
