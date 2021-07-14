@@ -1,6 +1,7 @@
 import serial
 from time import sleep
 from datetime import datetime
+from threading import Timer
 import binascii
 from cryptography.fernet import Fernet
 import sys
@@ -19,6 +20,7 @@ class WorkerSignals(QObject):
     messageToGUI = pyqtSignal(str)
     sendMessage = pyqtSignal(str)
     stopReceiving = pyqtSignal(int, str)
+    pressEnter = pyqtSignal()
 
 class Worker(QRunnable):
     '''
@@ -51,6 +53,7 @@ class Worker(QRunnable):
                 ser.write(m.encode())
                 ser.write(b'\r\n')
                 r = ser.readline().decode()
+                sleep(.2)
                 if len(r):
                     print('{r}'.format(r=r[:-2]))
                 else:
@@ -75,13 +78,13 @@ class Worker(QRunnable):
         sleep(.2)
         response = ser.readline().decode()
         print(response)
-        sleep(2)
+        sleep(1)
         active = True
         self.resetRadio()
         self.receiveRadio()
 
     def sendReceived(self):
-        sleep(2)
+        sleep(1)
         self.resetRadio()
         msg = '4321'.encode("utf-8").hex()
         print(msg)
@@ -90,11 +93,11 @@ class Worker(QRunnable):
         sleep(.2)
         response = ser.readline().decode()
         print(response)
-        sleep(2)
+        sleep(1)
         self.resetRadio()
         
     def sendAgain(self):
-        sleep(2)
+        sleep(1)
         self.resetRadio()
         msg = '9999'.encode("utf-8").hex()
         print(msg)
@@ -103,7 +106,7 @@ class Worker(QRunnable):
         sleep(.2)
         response = ser.readline().decode()
         print(response)
-        sleep(2)
+        sleep(1)
         self.resetRadio()        
         
     def receiveRadio(self):
@@ -191,6 +194,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.connectSignalsSlots()
         self.statusBar().showMessage('Ready to send message')
+        self.textEdit.setMaxLength(80)
         self.threadpool = QThreadPool()
         print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
         self.signals = WorkerSignals()
@@ -201,11 +205,13 @@ class Window(QMainWindow, Ui_MainWindow):
         worker.signals.messageToGUI.connect(self.writeToBrowser)
         self.signals.stopReceiving.connect(worker.receiveRadio)
         self.signals.sendMessage.connect(worker.sendRadio)
+        self.signals.pressEnter.connect(self.receiveSendButton)
         self.threadpool.start(worker)
         
     def connectSignalsSlots(self):
         #self.action_Exit.triggered.connect(self.close)
         self.sendButton.clicked.connect(self.receiveSendButton)
+        self.textEdit.textChanged[str].connect(self.textLength)
         
     def writeToBrowser(self, message):
         now = datetime.now().strftime("%H:%M:%S: ")
@@ -220,6 +226,7 @@ class Window(QMainWindow, Ui_MainWindow):
         blue = QColor(0, 0, 255)
         self.textBrowser.setTextColor(blue)
         message = self.textEdit.text()
+        
         worker = Worker()
         active = False
         gmessage = message
@@ -230,7 +237,23 @@ class Window(QMainWindow, Ui_MainWindow):
         self.textBrowser.append(message)
         self.textEdit.clear()      
         self.statusBar().showMessage('Message sent')
+        t = Timer(interval=5.0, function=self.setBar)
+        t.start()
+      
+    def setBar(self):
+        self.statusBar().showMessage('Ready to send message')
+        
+    def textLength(self, mes):
+        length = len(mes)
+        self.characterLabel.setText(str(length)+'/80')
 
+    def keyPressEvent(self, qKeyEvent):
+        print(qKeyEvent.key())
+        if qKeyEvent.key() == Qt.Key_Return: 
+            self.signals.pressEnter.emit()
+        else:
+            super().keyPressEvent(qKeyEvent)
+           
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     win = Window()
